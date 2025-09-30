@@ -4,16 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>우리반 화폐 관리</title>
+    <!-- 
+      ▼ 필수 도구 불러오기 ▼
+      1. Tailwind CSS: 앱을 예쁘게 꾸며주는 디자인 도구
+      2. PapaParse: 구글 시트 데이터를 읽어주는 번역 도구 (이 부분이 문제였습니다!)
+    -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.3.2/papaparse.min.js"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* 기본 폰트 및 부드러운 스크롤 설정 */
         body { 
             font-family: 'Inter', 'Noto Sans KR', sans-serif;
-            background-color: #f0f4f8; /* 더 부드러운 배경색 */
+            background-color: #f0f4f8;
         }
-        /* 애니메이션 효과 */
         .fade-in { animation: fadeIn 0.5s ease-out forwards; }
         .slide-up { animation: slideUp 0.4s ease-out forwards; }
         .loader {
@@ -37,13 +41,10 @@
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* 커스텀 스크롤바 */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #818cf8; }
-
-        /* 활성화된 탭 버튼 스타일 */
         .tab-button.active {
             border-color: #4f46e5;
             color: #4f46e5;
@@ -160,7 +161,7 @@
     </div>
 
     <script>
-        // --- 설정 ---
+ // --- 설정 ---
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8s8kxrDEg3N14k5jJVTtuNDTX4IxPlVgqdyWIGM38beaj2om9QIfo1nrqeGhP3ev6ZQ/exec';
         const STUDENTS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZ_ShFIM2PJKekYJR4hZr4xdTAvhD-3O27pYsSiY5wh43xx7QSS0RV2rYkcqzfJGA7hegjwaRNs2Vg/pub?gid=0&single=true&output=csv';
         const TRANSACTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZ_ShFIM2PJKekYJR4hZr4xdTAvhD-3O27pYsSiY5wh43xx7QSS0RV2rYkcqzfJGA7hegjwaRNs2Vg/pub?gid=1883191849&single=true&output=csv';
@@ -188,7 +189,7 @@
             try {
                 const [studentData, transactionData] = await Promise.all([fetchAndParseCsv(STUDENTS_CSV_URL), fetchAndParseCsv(TRANSACTIONS_CSV_URL)]);
                 allStudents = studentData;
-                allTransactions = transactionData.sort((a, b) => new Date(b.날짜) - new Date(a.날짜)); // 최신순 정렬
+                allTransactions = transactionData.sort((a, b) => new Date(b.날짜) - new Date(a.날짜)); 
                 populateLoginScreen();
                 elements['loading-screen'].classList.add('hidden');
                 elements['login-screen'].classList.remove('hidden', 'fade-in');
@@ -201,8 +202,6 @@
         
         async function refreshData() {
             try {
-                // 구글 시트는 웹 게시 업데이트에 약 5분 지연이 있을 수 있습니다.
-                // 즉각적인 피드백을 위해, 기록 후 2초 뒤에 데이터를 다시 불러옵니다.
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
                 const transactionData = await fetchAndParseCsv(TRANSACTIONS_CSV_URL);
@@ -222,7 +221,12 @@
 
         function fetchAndParseCsv(url) {
             const urlWithNoCache = `${url}&t=${new Date().getTime()}`;
-            return new Promise((resolve, reject) => Papa.parse(urlWithNoCache, { download: true, header: true, skipEmptyLines: true, complete: res => resolve(res.data), error: err => reject(err) }));
+            return new Promise((resolve, reject) => {
+                if (typeof Papa === 'undefined') {
+                    return reject(new Error("PapaParse library is not loaded."));
+                }
+                Papa.parse(urlWithNoCache, { download: true, header: true, skipEmptyLines: true, complete: res => resolve(res.data), error: err => reject(err) })
+            });
         }
 
         function populateLoginScreen() {
@@ -300,7 +304,6 @@
         }
         function closeTransactionModal() { elements['transaction-modal'].classList.add('hidden'); }
 
-        // 이벤트 리스너
         elements['logout-button'].onclick = () => { currentStudent = null; showScreen('login-screen'); };
         elements['login-button'].onclick = () => {
             if (passwordInput === currentStudent['비밀번호']) { closePasswordModal(); populatePersonalPage(currentStudent); showScreen('personal-page'); } 
@@ -342,7 +345,6 @@
             }
         };
 
-        // 키패드 생성
         function createKeypad() {
             const keypadContainer = elements['password-modal'].querySelector('.grid');
             if (keypadContainer.children.length > 0) return;
