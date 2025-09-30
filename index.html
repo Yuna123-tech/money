@@ -6,255 +6,358 @@
     <title>우리반 화폐 관리</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.3.2/papaparse.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; }
-        .keypad-btn { transition: all 0.1s ease-in-out; }
-        .keypad-btn:active { transform: scale(0.95); background-color: #e0e0e0; }
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
-        .loader {
-            border: 8px solid #f3f3f3; border-radius: 50%;
-            border-top: 8px solid #3498db; width: 60px; height: 60px;
-            animation: spin 2s linear infinite;
+        /* 기본 폰트 및 부드러운 스크롤 설정 */
+        body { 
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: #f0f4f8; /* 더 부드러운 배경색 */
         }
+        /* 애니메이션 효과 */
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .slide-up { animation: slideUp 0.4s ease-out forwards; }
+        .loader {
+            border: 6px solid #e2e8f0;
+            border-top: 6px solid #4f46e5;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1.5s linear infinite;
+        }
+        .loader-small {
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-right: 2px solid white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* 커스텀 스크롤바 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #818cf8; }
+
+        /* 활성화된 탭 버튼 스타일 */
+        .tab-button.active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background-color: #eef2ff;
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen p-4">
     <div class="w-full max-w-4xl mx-auto">
         <!-- 로딩 화면 -->
-        <div id="loading-screen" class="text-center p-6">
+        <div id="loading-screen" class="text-center p-6 fade-in">
             <div class="loader mx-auto"></div>
-            <p class="mt-4 text-gray-600">데이터를 불러오는 중입니다...</p>
+            <p class="mt-4 text-slate-600 font-semibold">우리 반 데이터를 불러오고 있어요...</p>
         </div>
 
         <!-- 로그인 화면 -->
-        <div id="login-screen" class="hidden p-4 sm:p-6">
-            <header class="text-center mb-6">
-                <h1 id="header-title" class="text-3xl sm:text-4xl font-bold text-gray-800"></h1>
-                <p class="text-gray-600 mt-2">자신의 캐릭터를 선택하고 비밀번호를 입력하세요.</p>
+        <div id="login-screen" class="hidden">
+            <header class="text-center mb-8">
+                <h1 id="header-title" class="text-3xl sm:text-4xl font-extrabold text-slate-800"></h1>
+                <p class="text-slate-500 mt-2">자신의 캐릭터를 선택해주세요!</p>
             </header>
-            <div id="student-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                <!-- 학생 카드가 여기에 동적으로 추가됩니다. -->
-            </div>
+            <div id="student-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5"></div>
         </div>
 
         <!-- 개인 페이지 -->
-        <div id="personal-page" class="hidden p-4 sm:p-6 bg-white rounded-2xl shadow-xl">
-            <div class="flex flex-col sm:flex-row items-center justify-between mb-6 pb-4 border-b">
-                <div class="flex items-center space-x-4">
-                    <img id="student-avatar-personal" src="" alt="학생 아바타" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-blue-400 object-cover">
-                    <div>
-                        <h2 id="student-nickname-personal" class="text-2xl sm:text-3xl font-bold text-gray-800"></h2>
-                        <p class="text-lg text-blue-600 font-semibold"><span id="currency-label"></span>: <span id="total-clouds"></span>개</p>
+        <div id="personal-page" class="hidden bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-6 bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-4">
+                        <img id="student-avatar-personal" src="" alt="학생 아바타" class="w-20 h-20 rounded-full border-4 border-white/50 object-cover shadow-lg">
+                        <div>
+                            <h2 id="student-nickname-personal" class="text-2xl font-bold"></h2>
+                            <p class="text-indigo-200">환영합니다!</p>
+                        </div>
                     </div>
+                    <button id="logout-button" title="로그아웃" class="bg-white/20 hover:bg-white/30 rounded-full p-2 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </button>
                 </div>
-                <button id="logout-button" class="mt-4 sm:mt-0 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition">로그아웃</button>
+                <div class="text-center bg-white/20 p-4 rounded-xl">
+                    <p id="currency-label" class="text-sm text-indigo-200 uppercase tracking-wider font-semibold"></p>
+                    <p class="text-4xl font-extrabold tracking-tight"><span id="total-clouds">0</span> 개</p>
+                </div>
             </div>
-            
-            <h3 id="details-header" class="text-xl font-bold text-gray-700 mb-4"></h3>
-            <div class="overflow-y-auto h-96 custom-scrollbar border rounded-lg">
-                <table class="w-full text-sm text-left text-gray-500">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                        <tr>
-                            <th scope="col" class="px-4 py-3">날짜</th>
-                            <th scope="col" class="px-4 py-3">내용</th>
-                            <th scope="col" class="px-4 py-3 text-center">변동</th>
-                            <th scope="col" class="px-4 py-3 text-center">남은 <span class="currency-name-span"></span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="transaction-history">
-                        <!-- 거래 내역이 여기에 동적으로 추가됩니다. -->
-                    </tbody>
-                </table>
+
+            <div class="p-6">
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <button onclick="showTransactionModal('지출')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                        지출/경매 기록
+                    </button>
+                    <button onclick="showTransactionModal('기부')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-5 rounded-lg shadow-md hover:shadow-lg transition">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        친구에게 기부
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                     <div id="filter-buttons" class="flex border-b border-slate-200">
+                        <button class="tab-button flex-1 py-3 px-4 font-semibold text-slate-500 border-b-2 border-transparent transition" data-filter="전체">전체</button>
+                        <button class="tab-button flex-1 py-3 px-4 font-semibold text-slate-500 border-b-2 border-transparent transition" data-filter="수입">수입</button>
+                        <button class="tab-button flex-1 py-3 px-4 font-semibold text-slate-500 border-b-2 border-transparent transition" data-filter="지출">지출</button>
+                        <button class="tab-button flex-1 py-3 px-4 font-semibold text-slate-500 border-b-2 border-transparent transition" data-filter="기부">기부</button>
+                     </div>
+                </div>
+
+                <div class="overflow-y-auto h-72 custom-scrollbar">
+                    <table class="w-full text-sm text-left text-slate-500">
+                        <tbody id="transaction-history"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- 비밀번호 입력 모달 -->
-    <div id="password-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center">
-            <img id="modal-avatar" src="" alt="아바타" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-gray-300 object-cover">
-            <h3 id="modal-nickname" class="text-2xl font-bold text-gray-800 mb-2"></h3>
-            <p class="text-gray-600 mb-4">비밀번호를 입력하세요.</p>
-            <div id="password-display" class="bg-gray-200 w-full h-12 rounded-lg text-3xl flex items-center justify-center tracking-widest mb-4"></div>
-            <p id="error-message" class="text-red-500 h-5 mb-2 text-sm"></p>
-            <div class="grid grid-cols-3 gap-2">
-                <!-- 숫자 키패드가 여기에 동적으로 추가됩니다. -->
+    <div id="password-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 fade-in">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-6 text-center slide-up">
+            <img id="modal-avatar" src="" alt="아바타" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-slate-200 object-cover">
+            <h3 id="modal-nickname" class="text-2xl font-bold text-slate-800 mb-2"></h3>
+            <div id="password-display" class="bg-slate-100 w-full h-12 rounded-lg text-3xl flex items-center justify-center tracking-[0.2em] my-4 font-mono"></div>
+            <p id="error-message" class="text-red-500 h-5 mb-2 text-sm font-semibold"></p>
+            <div class="grid grid-cols-3 gap-3"></div>
+            <div class="mt-5 flex gap-3">
+                <button onclick="closePasswordModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-lg transition">취소</button>
+                <button id="login-button" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">확인</button>
             </div>
-            <div class="mt-4 flex gap-2">
-                <button id="close-modal-button" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 rounded-lg transition">취소</button>
-                <button id="login-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition">확인</button>
+        </div>
+    </div>
+
+    <!-- 거래 기록 모달 -->
+    <div id="transaction-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 fade-in">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 slide-up">
+            <h3 id="transaction-modal-title" class="text-2xl font-bold text-slate-800 mb-5"></h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="amount-input" class="block text-sm font-medium text-slate-700">금액</label>
+                    <input type="number" id="amount-input" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="숫자만 입력">
+                </div>
+                <div>
+                    <label for="description-input" class="block text-sm font-medium text-slate-700">내용 (어디에 썼나요?)</label>
+                    <textarea id="description-input" rows="3" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 자리 경매에서 1번 자리 낙찰"></textarea>
+                </div>
+            </div>
+            <p id="transaction-error" class="text-red-500 h-5 mt-3 text-sm font-semibold"></p>
+            <div class="mt-5 flex gap-3">
+                 <button onclick="closeTransactionModal()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-lg transition">취소</button>
+                 <button id="submit-transaction-button" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition flex items-center justify-center">
+                    <span>기록하기</span>
+                    <div class="loader-small hidden ml-2"></div>
+                 </button>
             </div>
         </div>
     </div>
 
     <script>
         // --- 설정 ---
-        // 1. 안내서에 따라 '학생명단'과 '화폐내역' 시트의 CSV 게시 링크를 아래에 각각 붙여넣으세요.
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8s8kxrDEg3N14k5jJVTtuNDTX4IxPlVgqdyWIGM38beaj2om9QIfo1nrqeGhP3ev6ZQ/exec';
         const STUDENTS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZ_ShFIM2PJKekYJR4hZr4xdTAvhD-3O27pYsSiY5wh43xx7QSS0RV2rYkcqzfJGA7hegjwaRNs2Vg/pub?gid=0&single=true&output=csv';
-        const TRANSACTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZ_ShFIM2PJKekYJR4hZr4xdTAvhD-3O27pYsSiY5wh43xx7QSS0RV2rYkcqzfJGA7hegjwaRNs2Vg/pub?gid=0&single=true&output=csv';
-
-        // 2. 학급 화폐 이름을 원하는 대로 수정하세요. (예: '보석', '칭찬별')
+        const TRANSACTIONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZ_ShFIM2PJKekYJR4hZr4xdTAvhD-3O27pYsSiY5wh43xx7QSS0RV2rYkcqzfJGA7hegjwaRNs2Vg/pub?gid=1883191849&single=true&output=csv';
         const CURRENCY_NAME = '구름';
         // --- 설정 끝 ---
 
-        // HTML 요소 가져오기
-        const loadingScreen = document.getElementById('loading-screen');
-        const loginScreen = document.getElementById('login-screen');
-        const personalPage = document.getElementById('personal-page');
-        const studentGrid = document.getElementById('student-grid');
-        const passwordModal = document.getElementById('password-modal');
-        
-        // 전역 변수 선언
-        let allStudents = [];
-        let allTransactions = [];
-        let currentStudent = null;
-        let passwordInput = '';
+        // 전역 변수 및 요소 캐싱
+        const elements = {};
+        let allStudents = [], allTransactions = [], currentStudent = null, passwordInput = '', currentTransactionType = '';
 
         // 앱 초기화 함수
-        window.onload = async function initializeApp() {
-            updateUiText(); // 화폐 이름 등 UI 텍스트 업데이트
-
-            if (STUDENTS_CSV_URL.includes('여기에') || TRANSACTIONS_CSV_URL.includes('여기에')) {
-                loadingScreen.innerHTML = '<p class="text-red-500 font-bold">오류: index.html 파일에 구글 시트 URL을 먼저 입력해주세요.</p>';
+        window.onload = () => {
+            const elementIds = ['loading-screen', 'login-screen', 'personal-page', 'student-grid', 'password-modal', 'transaction-modal', 'header-title', 'currency-label', 'filter-buttons', 'transaction-history', 'total-clouds', 'student-avatar-personal', 'student-nickname-personal', 'modal-avatar', 'modal-nickname', 'password-display', 'error-message', 'login-button', 'logout-button', 'transaction-modal-title', 'amount-input', 'description-input', 'transaction-error', 'submit-transaction-button'];
+            elementIds.forEach(id => elements[id] = document.getElementById(id));
+            
+            updateUiText();
+            if (SCRIPT_URL.includes('여기에') || STUDENTS_CSV_URL.includes('여기에') || TRANSACTIONS_CSV_URL.includes('여기에')) {
+                elements['loading-screen'].innerHTML = '<p class="text-red-500 font-bold text-center">🚨 설정이 필요합니다!<br>index.html 파일을 수정하여 3개의 필수 URL을 모두 입력해주세요.</p>';
                 return;
             }
+            initializeApp();
+        };
+
+        async function initializeApp() {
             try {
-                const [studentData, transactionData] = await Promise.all([
-                    fetchAndParseCsv(STUDENTS_CSV_URL),
-                    fetchAndParseCsv(TRANSACTIONS_CSV_URL)
-                ]);
+                const [studentData, transactionData] = await Promise.all([fetchAndParseCsv(STUDENTS_CSV_URL), fetchAndParseCsv(TRANSACTIONS_CSV_URL)]);
                 allStudents = studentData;
-                allTransactions = transactionData;
+                allTransactions = transactionData.sort((a, b) => new Date(b.날짜) - new Date(a.날짜)); // 최신순 정렬
                 populateLoginScreen();
-                loadingScreen.classList.add('hidden');
-                loginScreen.classList.remove('hidden');
+                elements['loading-screen'].classList.add('hidden');
+                elements['login-screen'].classList.remove('hidden', 'fade-in');
+                elements['login-screen'].classList.add('fade-in');
             } catch (error) {
                 console.error("Data loading failed:", error);
-                loadingScreen.innerHTML = `<p class="text-red-500 font-bold">데이터 로딩 실패.<br>구글 시트 '웹에 게시' 설정과 URL을 확인해주세요.</p>`;
+                elements['loading-screen'].innerHTML = `<p class="text-red-500 font-bold text-center">🚨 데이터 로딩 실패!<br>구글 시트 '웹에 게시' 설정과 URL을 다시 확인해주세요.</p>`;
+            }
+        }
+        
+        async function refreshData() {
+            try {
+                // 구글 시트는 웹 게시 업데이트에 약 5분 지연이 있을 수 있습니다.
+                // 즉각적인 피드백을 위해, 기록 후 2초 뒤에 데이터를 다시 불러옵니다.
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const transactionData = await fetchAndParseCsv(TRANSACTIONS_CSV_URL);
+                allTransactions = transactionData.sort((a, b) => new Date(b.날짜) - new Date(a.날짜));
+                populatePersonalPage(currentStudent);
+            } catch (error) {
+                console.error("Data refresh failed:", error);
+                alert("데이터를 새로고침하는데 실패했습니다.");
             }
         }
 
-        // UI에 표시되는 텍스트를 설정값에 따라 업데이트하는 함수
         function updateUiText() {
             document.title = `우리반 ${CURRENCY_NAME} 관리`;
-            document.getElementById('header-title').textContent = `우리반 ${CURRENCY_NAME} 확인하기`;
-            document.getElementById('currency-label').textContent = `현재 ${CURRENCY_NAME}`;
-            document.getElementById('details-header').textContent = `상세 ${CURRENCY_NAME} 내역`;
-            document.querySelectorAll('.currency-name-span').forEach(el => el.textContent = CURRENCY_NAME);
+            elements['header-title'].textContent = `우리반 ${CURRENCY_NAME} 확인`;
+            elements['currency-label'].textContent = `나의 ${CURRENCY_NAME}`;
         }
 
-        // CSV 데이터를 가져와 파싱하는 함수
         function fetchAndParseCsv(url) {
-            const urlWithNoCache = `${url}?t=${new Date().getTime()}`;
-            return new Promise((resolve, reject) => {
-                Papa.parse(urlWithNoCache, {
-                    download: true, header: true, skipEmptyLines: true,
-                    complete: (results) => resolve(results.data),
-                    error: (error) => reject(error)
-                });
-            });
+            const urlWithNoCache = `${url}&t=${new Date().getTime()}`;
+            return new Promise((resolve, reject) => Papa.parse(urlWithNoCache, { download: true, header: true, skipEmptyLines: true, complete: res => resolve(res.data), error: err => reject(err) }));
         }
 
-        // 로그인 화면에 학생 카드들을 채우는 함수
         function populateLoginScreen() {
-            studentGrid.innerHTML = '';
+            elements['student-grid'].innerHTML = '';
             allStudents.forEach(student => {
                 if (!student['별명'] || !student['이미지 주소']) return;
                 const card = document.createElement('div');
-                card.className = 'bg-white p-4 rounded-xl shadow-md text-center cursor-pointer hover:shadow-lg hover:scale-105 transition-transform';
-                card.innerHTML = `
-                    <img src="${student['이미지 주소']}" alt="${student['별명']}" class="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-gray-200 object-cover" onerror="this.src='https://placehold.co/100x100/E2E8F0/4A5568?text=%3F'">
-                    <h3 class="font-bold text-gray-800">${student['별명']}</h3>
-                `;
-                card.addEventListener('click', () => { currentStudent = student; openPasswordModal(student); });
-                studentGrid.appendChild(card);
+                card.className = 'bg-white p-4 rounded-xl shadow-lg text-center cursor-pointer hover:-translate-y-1 hover:shadow-xl transition-all duration-300';
+                card.innerHTML = `<img src="${student['이미지 주소']}" alt="${student['별명']}" class="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-slate-100 object-cover" onerror="this.src='https://placehold.co/100x100/E2E8F0/4A5568?text=%3F'"><h3 class="font-bold text-slate-800 truncate">${student['별명']}</h3>`;
+                card.onclick = () => { currentStudent = student; openPasswordModal(student); };
+                elements['student-grid'].appendChild(card);
             });
         }
-        
-        // 개인 페이지에 학생 정보와 거래 내역을 채우는 함수
-        function populatePersonalPage(student) {
-            document.getElementById('student-avatar-personal').src = student['이미지 주소'];
-            document.getElementById('student-nickname-personal').textContent = student['별명'];
-            const historyBody = document.getElementById('transaction-history');
-            historyBody.innerHTML = '';
-            const studentTransactions = allTransactions.filter(tx => tx['별명'] === student['별명']);
 
-            if (studentTransactions.length === 0) {
-                document.getElementById('total-clouds').textContent = '0';
-                historyBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">${CURRENCY_NAME} 내역이 없습니다.</td></tr>`;
-                return;
+        function populatePersonalPage(student, filter = '전체') {
+            elements['student-avatar-personal'].src = student['이미지 주소'];
+            elements['student-nickname-personal'].textContent = student['별명'];
+            elements['transaction-history'].innerHTML = '';
+            
+            const studentTransactions = allTransactions.filter(tx => tx['별명'] === student['별명']);
+            let filteredTransactions = studentTransactions;
+
+            if(filter !== '전체') {
+                if(filter === '수입') filteredTransactions = studentTransactions.filter(tx => parseFloat(tx['변동']) > 0);
+                else filteredTransactions = studentTransactions.filter(tx => tx['유형'] === filter);
             }
 
-            let runningTotal = 0;
-            studentTransactions.forEach(tx => {
-                const amount = parseInt(tx['변동'], 10) || 0;
-                runningTotal += amount;
-                const row = document.createElement('tr');
-                row.className = 'bg-white border-b';
-                const amountColor = amount >= 0 ? 'text-blue-600' : 'text-red-600';
-                const amountPrefix = amount > 0 ? '+' : '';
-                row.innerHTML = `
-                    <td class="px-4 py-3">${tx['날짜']}</td>
-                    <td class="px-4 py-3 font-medium text-gray-900">${tx['내용']}</td>
-                    <td class="px-4 py-3 text-center font-semibold ${amountColor}">${amountPrefix}${amount}</td>
-                    <td class="px-4 py-3 text-center font-bold">${runningTotal}</td>
-                `;
-                historyBody.appendChild(row);
-            });
-            document.getElementById('total-clouds').textContent = runningTotal;
+            if (filteredTransactions.length === 0) {
+                elements['transaction-history'].innerHTML = `<tr><td colspan="3" class="text-center p-8 text-slate-400">아직 내역이 없어요.</td></tr>`;
+            } else {
+                filteredTransactions.forEach(tx => {
+                    const amount = parseInt(tx['변동'], 10) || 0;
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-slate-100 last:border-b-0';
+                    const amountColor = amount >= 0 ? 'text-blue-600' : 'text-rose-600';
+                    const amountPrefix = amount > 0 ? '+' : '';
+                    row.innerHTML = `
+                        <td class="p-4">
+                            <p class="font-semibold text-slate-800">${tx['내용']}</p>
+                            <p class="text-xs text-slate-400">${tx['날짜']} &middot; ${tx['유형'] || ''}</p>
+                        </td>
+                        <td class="p-4 text-right font-bold text-lg ${amountColor}">${amountPrefix}${amount}</td>`;
+                    elements['transaction-history'].appendChild(row);
+                });
+            }
+
+            const total = studentTransactions.reduce((acc, tx) => acc + (parseInt(tx['변동'], 10) || 0), 0);
+            elements['total-clouds'].textContent = total;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
         }
-        
-        // 화면 전환 함수
-        function showLoginScreen() { loginScreen.classList.remove('hidden'); personalPage.classList.add('hidden'); currentStudent = null; }
-        function showPersonalPage(student) { loginScreen.classList.add('hidden'); personalPage.classList.remove('hidden'); populatePersonalPage(student); }
-        
-        // 비밀번호 모달 관련 함수
+
+        function showScreen(screenId) {
+            ['login-screen', 'personal-page'].forEach(id => elements[id].classList.add('hidden'));
+            elements[screenId].classList.remove('hidden');
+            elements[screenId].classList.add('fade-in');
+        }
+
         function openPasswordModal(student) {
             passwordInput = '';
-            document.getElementById('modal-avatar').src = student['이미지 주소'];
-            document.getElementById('modal-nickname').textContent = student['별명'];
+            elements['modal-avatar'].src = student['이미지 주소'];
+            elements['modal-nickname'].textContent = student['별명'];
             updatePasswordDisplay();
-            document.getElementById('error-message').textContent = '';
-            passwordModal.classList.remove('hidden');
+            elements['error-message'].textContent = '';
+            elements['password-modal'].classList.remove('hidden');
         }
-        function closePasswordModal() { passwordModal.classList.add('hidden'); }
+        function closePasswordModal() { elements['password-modal'].classList.add('hidden'); }
+        
+        function showTransactionModal(type) {
+            currentTransactionType = type;
+            elements['transaction-modal-title'].textContent = `${type} 기록하기`;
+            elements['amount-input'].value = '';
+            elements['description-input'].value = '';
+            elements['transaction-error'].textContent = '';
+            elements['transaction-modal'].classList.remove('hidden');
+        }
+        function closeTransactionModal() { elements['transaction-modal'].classList.add('hidden'); }
 
-        // 이벤트 리스너 연결
-        document.getElementById('close-modal-button').addEventListener('click', closePasswordModal);
-        document.getElementById('logout-button').addEventListener('click', showLoginScreen);
-        document.getElementById('login-button').addEventListener('click', () => {
-            if (passwordInput === currentStudent['비밀번호']) {
-                closePasswordModal();
-                showPersonalPage(currentStudent);
-            } else {
-                document.getElementById('error-message').textContent = '비밀번호가 틀렸어요!';
-                passwordInput = '';
-                updatePasswordDisplay();
+        // 이벤트 리스너
+        elements['logout-button'].onclick = () => { currentStudent = null; showScreen('login-screen'); };
+        elements['login-button'].onclick = () => {
+            if (passwordInput === currentStudent['비밀번호']) { closePasswordModal(); populatePersonalPage(currentStudent); showScreen('personal-page'); } 
+            else { elements['error-message'].textContent = '비밀번호가 틀렸어요!'; passwordInput = ''; updatePasswordDisplay(); }
+        };
+        elements['filter-buttons'].onclick = (e) => {
+            if (e.target.matches('.tab-button')) populatePersonalPage(currentStudent, e.target.dataset.filter);
+        };
+        elements['submit-transaction-button'].onclick = async () => {
+            const amount = parseInt(elements['amount-input'].value);
+            const description = elements['description-input'].value.trim();
+            const errorEl = elements['transaction-error'];
+
+            if (!amount || amount <= 0) { errorEl.textContent = '올바른 금액을 입력하세요.'; return; }
+            if (!description) { errorEl.textContent = '내용을 입력하세요.'; return; }
+            
+            const total = allTransactions.filter(tx => tx['별명'] === currentStudent['별명']).reduce((acc, tx) => acc + (parseInt(tx['변동'], 10) || 0), 0);
+            if (total < amount) { errorEl.textContent = '잔액이 부족합니다.'; return; }
+
+            errorEl.textContent = '';
+            const submitBtn = elements['submit-transaction-button'];
+            submitBtn.disabled = true;
+            submitBtn.querySelector('span').textContent = '저장 중...';
+            submitBtn.querySelector('.loader-small').classList.remove('hidden');
+
+            const data = { nickname: currentStudent['별명'], description, amount: -amount, type: currentTransactionType };
+
+            try {
+                await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data), headers: {'Content-Type': 'text/plain;charset=utf-8'} });
+                closeTransactionModal();
+                await refreshData();
+            } catch (err) {
+                console.error('Submit error:', err);
+                errorEl.textContent = '기록에 실패했습니다. 잠시 후 다시 시도하세요.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.querySelector('span').textContent = '기록하기';
+                submitBtn.querySelector('.loader-small').classList.add('hidden');
             }
-        });
+        };
 
-        // --- 키패드 생성 및 로직 ---
-        function handleKeypadClick(num) { if (passwordInput.length < 10) { passwordInput += num; updatePasswordDisplay(); } }
-        function handleDeleteClick() { passwordInput = passwordInput.slice(0, -1); updatePasswordDisplay(); }
-        function updatePasswordDisplay() { document.getElementById('password-display').textContent = '•'.repeat(passwordInput.length); }
-        const keypadContainer = passwordModal.querySelector('.grid');
-        if (keypadContainer.children.length === 0) {
-            const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, ' ', 0, '⌫'];
-            keys.forEach(key => {
+        // 키패드 생성
+        function createKeypad() {
+            const keypadContainer = elements['password-modal'].querySelector('.grid');
+            if (keypadContainer.children.length > 0) return;
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, ' ', 0, '⌫'].forEach(key => {
                 if (key === ' ') { keypadContainer.innerHTML += '<div></div>'; return; }
                 const button = document.createElement('button');
                 button.textContent = key;
-                button.className = 'keypad-btn bg-gray-200 text-2xl font-bold p-4 rounded-lg';
-                if(key === '⌫') { button.addEventListener('click', handleDeleteClick); } 
-                else { button.addEventListener('click', () => handleKeypadClick(key)); }
+                button.className = 'keypad-btn bg-slate-200 text-2xl font-bold p-4 rounded-lg hover:bg-slate-300 transition';
+                if(key === '⌫') { button.onclick = () => { passwordInput = passwordInput.slice(0, -1); updatePasswordDisplay(); }; } 
+                else { button.onclick = () => { if (passwordInput.length < 10) { passwordInput += key; updatePasswordDisplay(); } }; }
                 keypadContainer.appendChild(button);
             });
         }
+        function updatePasswordDisplay() { elements['password-display'].textContent = '●'.repeat(passwordInput.length); }
+        createKeypad();
     </script>
 </body>
 </html>
